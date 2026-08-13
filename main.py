@@ -16,9 +16,9 @@ def run_health_check_server():
     server = HTTPServer(('0.0.0.0', port), SimpleHTTPRequestHandler)
     server.serve_forever()
 
-# Start HTTP Server in background thread
 threading.Thread(target=run_health_check_server, daemon=True).start()
 
+# Environment Variables
 API_ID = int(os.environ.get("API_ID"))
 API_HASH = os.environ.get("API_HASH")
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
@@ -27,9 +27,26 @@ STRING_SESSION = os.environ.get("STRING_SESSION")
 bot = Client("RelayBot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 user = Client("RelayUser", api_id=API_ID, api_hash=API_HASH, session_string=STRING_SESSION)
 
+# 1. Start Command
 @bot.on_message(filters.command("start"))
-async def start(client, message):
-    await message.reply_text("🔥 Voice Chat Relay Bot is Live!")
+async def start_command(client, message):
+    await message.reply_text(
+        "🔥 **Voice Chat Relay Bot Active!**\n\n"
+        "**Commmands:**\n"
+        "• `/ping` - Check if bot is alive\n"
+        "• `/help` - Help menu\n"
+        "• `/join` - Join Voice Chat"
+    )
+
+# 2. Ping Command (Check Speed)
+@bot.on_message(filters.command("ping"))
+async def ping_command(client, message):
+    await message.reply_text("🏓 **Pong! Bot is running smoothly!**")
+
+# 3. Help Command
+@bot.on_message(filters.command("help"))
+async def help_command(client, message):
+    await message.reply_text("💡 Send commands to control the voice relay userbot.")
 
 async def main():
     await bot.start()
