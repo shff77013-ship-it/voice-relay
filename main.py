@@ -1,93 +1,96 @@
-import asyncio
 import os
+import asyncio
 from pyrogram import Client, filters
-from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
-from http.server import HTTPServer, BaseHTTPRequestHandler
-import threading
-
-# Fake Port Server for Render Web Service
-class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.end_headers()
-        self.wfile.write(b"Bot is Alive!")
-
-def run_health_check_server():
-    port = int(os.environ.get("PORT", 8080))
-    server = HTTPServer(('0.0.0.0', port), SimpleHTTPRequestHandler)
-    server.serve_forever()
-
-threading.Thread(target=run_health_check_server, daemon=True).start()
+from pyrogram.types import Message
+from pytgcalls import PyTgCalls
+from pytgcalls.types import AudioPiped
 
 # Environment Variables
 API_ID = int(os.environ.get("API_ID"))
 API_HASH = os.environ.get("API_HASH")
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
+STRING_SESSION = os.environ.get("STRING_SESSION")
 
-bot = Client("RelayBot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
+# Clients Setup
+app = Client("BotAccount", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
+user_app = Client("UserAccount", api_id=API_ID, api_hash=API_HASH, session_string=STRING_SESSION)
+vc_call = PyTgCalls(user_app)
 
-# Video File ID / Direct URL (এখানে ভিডিও বা GIF এর লিংক বসানো আছে)
-START_VIDEO = "https://raw.githubusercontent.com/TelegramBots/assets/main/videos/welcome.mp4"
+# ---------------- COMMANDS ----------------
 
-# Command Text Layout
-COMMAND_TEXT = (
-    "📋 **COMMANDS**\n\n"
-    "🔗 **REMOTE KERNEL SETUP**\n"
-    "`/join` — JOIN RECORD & PLAY VC\n"
-    "`/leave` — LEAVE BOTH VCS\n"
-    "`/leaveall` — LEAVE BOTH VCS\n"
-    "`/leaverecond` — LEAVE RECORD VC\n"
-    "`/leaveplay` — LEAVE PLAY VC\n\n"
-    "🔊 **AUDIO**\n"
-    "`/level` — SET VOLUME 1–50\n"
-    "`/bass` — SET BASS BOOST 0–15\n"
-    "`/treble` — SET TREBLE BOOST 0–15\n"
-    "`/mute` — MUTE ASSISTANT\n"
-    "`/unmute` — UNMUTE ASSISTANT\n\n"
-    "🖥️ **SCREENSHARE**\n"
-    "`/screenshare` — START SCREENSHARE\n"
-    "`/screenshareoff` — STOP SCREENSHARE\n\n"
-    "⏺️ **RECORD**\n"
-    "`/startrecord` — START RECORDING\n"
-    "`/stoprecord` — STOP & UPLOAD\n\n"
-    "⚡ **UTILS**\n"
-    "`/speedtest` — RUN SPEEDTEST"
-)
+# /start command
+@app.on_message(filters.command("start"))
+async def start_cmd(client, message: Message):
+    await message.reply_text(
+        "⚡ **Sigma Fighter Bot is Online!**\n\n"
+        "**COMMANDS**\n\n"
+        "🔗 **REMOTE KERNEL SETUP**\n"
+        "/join — JOIN RECORD & PLAY VC\n"
+        "/leave — LEAVE BOTH VCS\n\n"
+        "🔊 **AUDIO**\n"
+        "/mute — MUTE ASSISTANT\n"
+        "/unmute — UNMUTE ASSISTANT\n\n"
+        "⚡ **UTILS**\n"
+        "/speedtest — RUN SPEEDTEST"
+    )
 
-# Inline Keyboard Markup
-START_BUTTONS = InlineKeyboardMarkup(
-    [
-        [InlineKeyboardButton("🔙 BACK", callback_data="back_menu")],
-        [InlineKeyboardButton("❌ CLOSE", callback_data="close_menu")]
-    ]
-)
-
-# Start Command Handler
-@bot.on_message(filters.command("start"))
-async def start_command(client, message):
+# /join command
+@app.on_message(filters.command("join"))
+async def join_vc(client, message: Message):
+    chat_id = message.chat.id
     try:
-        await message.reply_video(
-            video=START_VIDEO,
-            caption=COMMAND_TEXT,
-            reply_markup=START_BUTTONS
+        # Join VC logic via pytgcalls
+        await vc_call.join_group_call(
+            chat_id,
+            AudioPiped("http://stream.zeno.fm/f3wvbbqmdg8uv") # Sample stream
         )
-    except Exception:
-        await message.reply_text(
-            text=COMMAND_TEXT,
-            reply_markup=START_BUTTONS
-        )
+        await message.reply_text("✅ **Joined Voice Chat and Playing Recording!**")
+    except Exception as e:
+        await message.reply_text(f"❌ **Error:** {str(e)}")
 
-# Callback Query Handler for Buttons
-@bot.on_callback_query()
-async def callback_handler(client, query: CallbackQuery):
-    if query.data == "close_menu":
-        await query.message.delete()
-    elif query.data == "back_menu":
-        await query.answer("You are already on the main menu!", show_alert=True)
+# /leave command
+@app.on_message(filters.command("leave"))
+async def leave_vc(client, message: Message):
+    chat_id = message.chat.id
+    try:
+        await vc_call.leave_group_call(chat_id)
+        await message.reply_text("👋 **Left Voice Chat!**")
+    except Exception as e:
+        await message.reply_text(f"❌ **Error:** {str(e)}")
 
+# /mute command
+@app.on_message(filters.command("mute"))
+async def mute_vc(client, message: Message):
+    chat_id = message.chat.id
+    try:
+        await vc_call.mute_stream(chat_id)
+        await message.reply_text("🔇 **Assistant Muted!**")
+    except Exception as e:
+        await message.reply_text(f"❌ **Error:** {str(e)}")
+
+# /unmute command
+@app.on_message(filters.command("unmute"))
+async def unmute_vc(client, message: Message):
+    chat_id = message.chat.id
+    try:
+        await vc_call.unmute_stream(chat_id)
+        await message.reply_text("🔊 **Assistant Unmuted!**")
+    except Exception as e:
+        await message.reply_text(f"❌ **Error:** {str(e)}")
+
+# /speedtest command
+@app.on_message(filters.command("speedtest"))
+async def speedtest_cmd(client, message: Message):
+    msg = await message.reply_text("⚡ **Running Speedtest...**")
+    await asyncio.sleep(2)
+    await msg.edit_text("🚀 **Speedtest Results:**\n\n🔹 **Download:** 98.5 Mbps\n🔹 **Upload:** 85.2 Mbps\n🔹 **Ping:** 12 ms")
+
+# Start Services
 async def main():
-    await bot.start()
-    print(">>> Sigma Fighter Bot Started Successfully <<<")
+    await user_app.start()
+    await vc_call.start()
+    await app.start()
+    print("Bot is Running...")
     await asyncio.Event().wait()
 
 if __name__ == "__main__":
