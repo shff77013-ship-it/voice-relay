@@ -1,6 +1,7 @@
 import asyncio
 import os
 from pyrogram import Client, filters
+from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import threading
 
@@ -22,36 +23,71 @@ threading.Thread(target=run_health_check_server, daemon=True).start()
 API_ID = int(os.environ.get("API_ID"))
 API_HASH = os.environ.get("API_HASH")
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
-STRING_SESSION = os.environ.get("STRING_SESSION")
 
 bot = Client("RelayBot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
-user = Client("RelayUser", api_id=API_ID, api_hash=API_HASH, session_string=STRING_SESSION)
 
-# 1. Start Command
+# Video File ID / Direct URL (এখানে ভিডিও বা GIF এর লিংক বসানো আছে)
+START_VIDEO = "https://raw.githubusercontent.com/TelegramBots/assets/main/videos/welcome.mp4"
+
+# Command Text Layout
+COMMAND_TEXT = (
+    "📋 **COMMANDS**\n\n"
+    "🔗 **REMOTE KERNEL SETUP**\n"
+    "`/join` — JOIN RECORD & PLAY VC\n"
+    "`/leave` — LEAVE BOTH VCS\n"
+    "`/leaveall` — LEAVE BOTH VCS\n"
+    "`/leaverecond` — LEAVE RECORD VC\n"
+    "`/leaveplay` — LEAVE PLAY VC\n\n"
+    "🔊 **AUDIO**\n"
+    "`/level` — SET VOLUME 1–50\n"
+    "`/bass` — SET BASS BOOST 0–15\n"
+    "`/treble` — SET TREBLE BOOST 0–15\n"
+    "`/mute` — MUTE ASSISTANT\n"
+    "`/unmute` — UNMUTE ASSISTANT\n\n"
+    "🖥️ **SCREENSHARE**\n"
+    "`/screenshare` — START SCREENSHARE\n"
+    "`/screenshareoff` — STOP SCREENSHARE\n\n"
+    "⏺️ **RECORD**\n"
+    "`/startrecord` — START RECORDING\n"
+    "`/stoprecord` — STOP & UPLOAD\n\n"
+    "⚡ **UTILS**\n"
+    "`/speedtest` — RUN SPEEDTEST"
+)
+
+# Inline Keyboard Markup
+START_BUTTONS = InlineKeyboardMarkup(
+    [
+        [InlineKeyboardButton("🔙 BACK", callback_data="back_menu")],
+        [InlineKeyboardButton("❌ CLOSE", callback_data="close_menu")]
+    ]
+)
+
+# Start Command Handler
 @bot.on_message(filters.command("start"))
 async def start_command(client, message):
-    await message.reply_text(
-        "🔥 **Voice Chat Relay Bot Active!**\n\n"
-        "**Commmands:**\n"
-        "• `/ping` - Check if bot is alive\n"
-        "• `/help` - Help menu\n"
-        "• `/join` - Join Voice Chat"
-    )
+    try:
+        await message.reply_video(
+            video=START_VIDEO,
+            caption=COMMAND_TEXT,
+            reply_markup=START_BUTTONS
+        )
+    except Exception:
+        await message.reply_text(
+            text=COMMAND_TEXT,
+            reply_markup=START_BUTTONS
+        )
 
-# 2. Ping Command (Check Speed)
-@bot.on_message(filters.command("ping"))
-async def ping_command(client, message):
-    await message.reply_text("🏓 **Pong! Bot is running smoothly!**")
-
-# 3. Help Command
-@bot.on_message(filters.command("help"))
-async def help_command(client, message):
-    await message.reply_text("💡 Send commands to control the voice relay userbot.")
+# Callback Query Handler for Buttons
+@bot.on_callback_query()
+async def callback_handler(client, query: CallbackQuery):
+    if query.data == "close_menu":
+        await query.message.delete()
+    elif query.data == "back_menu":
+        await query.answer("You are already on the main menu!", show_alert=True)
 
 async def main():
     await bot.start()
-    await user.start()
-    print(">>> Relay Bot Started Successfully <<<")
+    print(">>> Sigma Fighter Bot Started Successfully <<<")
     await asyncio.Event().wait()
 
 if __name__ == "__main__":
